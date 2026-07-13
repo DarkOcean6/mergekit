@@ -60,6 +60,13 @@ def magnitude(
     if density >= 1:
         return tensor
 
+    if tensor.numel() <= 1:
+        # Top-k selection is degenerate for a single-element tensor: int(d*1) = 0
+        # would drop the only element, which the assert below was meant to guard
+        # against. The principled extension that matches the stochastic
+        # sparsifiers' expected output for N=1 is `density * x`.
+        return density * tensor
+
     k = int(density * tensor.numel())
 
     assert k > 0, "not gonna zero out the whole tensor buddy"
@@ -92,6 +99,13 @@ def magnitude_outliers(
     """
     if density >= 1:
         return tensor
+
+    if tensor.numel() <= 1:
+        # For a single element there is no meaningful "middle band" to keep;
+        # the slice math below produces an empty mask which silently zeros
+        # the tensor. Use the same `density * x` substitution as the other
+        # sparsifiers so a (1,)-shape weight survives in expectation.
+        return density * tensor
 
     num_elems = tensor.numel()
     target_n = int(density * num_elems)
@@ -158,10 +172,26 @@ def della_magprune(
         else torch.float32
     )
 
-    if len(tensor.shape) < 2:
+    while len(tensor.shape) < 2:
         tensor = tensor.unsqueeze(0)
-    magnitudes = tensor.abs()
 
+    if tensor.shape[1] <= 1:
+        # Sort axis has size 1 (e.g. Gemma 4's per-layer `layer_scalar` of
+        # shape (1,)). Magnitude rank is undefined for a single element so
+        # the rank formula divides 0/0 and yields NaN keep-probabilities,
+        # which torch.bernoulli flags with a CUDA device-side assert.
+        #
+        # The principled answer is to substitute the stochastic operation
+        # with its expectation in the degenerate case. For N=1 the L1
+        # rescale collapses to a no-op (kept) or zero (dropped), so the
+        # expected output of `Bernoulli(p) * x` with the natural extension
+        # rank_norm = 1/2 (=> p = density) is exactly `density * x`. This
+        # matches DELLA's stochastic semantics in the N -> 1 limit while
+        # eliminating the variance amplification that hurts single-element
+        # weights like layer_scalar (60 of them in Gemma 4, one per layer).
+        return (density * tensor.to(work_dtype)).reshape(orig_shape)
+
+    magnitudes = tensor.abs()
     sorted_indices = torch.argsort(magnitudes, dim=1, descending=False)
     ranks = sorted_indices.argsort(dim=1).to(work_dtype) + 1
 
