@@ -218,6 +218,24 @@ def test_qwen3_moe_architecture_uses_json_v5_layout():
     assert "model.layers.0.mlp.experts.0.gate_proj.weight" not in names
 
 
+def test_gemma4_architecture_keeps_lm_head_at_checkpoint_root():
+    cfg = transformers.PretrainedConfig()
+    cfg.architectures = ["Gemma4ForConditionalGeneration"]
+    cfg.model_type = "gemma4"
+    cfg.text_config = transformers.PretrainedConfig(num_hidden_layers=1)
+    cfg.vision_config = transformers.PretrainedConfig(num_hidden_layers=1)
+
+    arch = arch_info_for_config(cfg)
+    weights = {w.name: w for w in arch.all_weights(cfg)}
+
+    assert "lm_head.weight" in weights
+    assert "model.language_model.lm_head.weight" not in weights
+    assert not weights["lm_head.weight"].optional
+    assert weights["lm_head.weight"].tied_names == (
+        "model.language_model.embed_tokens.weight",
+    )
+
+
 def test_auto_inference_uses_transformers_v5_layout_with_old_checkpoint_keys(
     tmp_path,
 ):
