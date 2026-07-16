@@ -99,26 +99,33 @@ class MergeConfiguration(BaseModel):
     parameters: Optional[Dict[str, ParameterSetting]] = None
 
     def referenced_models(self) -> List[ModelReference]:
-        models = set()
+        models = []
+        seen = set()
+
+        def add_model(model: ModelReference):
+            if model not in seen:
+                seen.add(model)
+                models.append(model)
+
         if self.base_model:
-            models.add(self.base_model)
+            add_model(self.base_model)
         if self.models:
             for model_in in self.models:
-                models.add(model_in.model)
+                add_model(model_in.model)
         if self.slices:
             for s in self.slices:
                 for src in s.sources:
-                    models.add(src.model)
+                    add_model(src.model)
         if self.modules:
             for m in self.modules.values():
                 if m.models:
                     for model_in in m.models:
-                        models.add(model_in.model)
+                        add_model(model_in.model)
                 if m.slices:
                     for s in m.slices:
                         for src in s.sources:
-                            models.add(src.model)
-        return list(models)
+                            add_model(src.model)
+        return models
 
     @model_validator(mode="after")
     def validate_inputs(self):

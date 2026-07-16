@@ -230,7 +230,7 @@ def test_gemma4_architecture_keeps_lm_head_at_checkpoint_root():
 
     assert "lm_head.weight" in weights
     assert "model.language_model.lm_head.weight" not in weights
-    assert not weights["lm_head.weight"].optional
+    assert weights["lm_head.weight"].optional
     assert weights["lm_head.weight"].tied_names == (
         "model.language_model.embed_tokens.weight",
     )

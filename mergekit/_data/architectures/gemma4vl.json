@@ -109,6 +109,7 @@
                     {
                         "name": "lm_head.weight",
                         "is_embed": true,
+                        "optional": true,
                         "tied_names": [
                             "model.language_model.embed_tokens.weight"
                         ]

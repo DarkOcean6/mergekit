@@ -162,21 +162,50 @@ class MergePlanner:
         models: List[ModelReference],
         cfg_reader: ConfigReader,
     ):
-        if weight.optional:
-            # check if any input weights are present
-            any_weight = False
+        any_physical_weight = False
+        any_tied_fallback = False
+        if weight.optional or weight.tied_names:
             for model, w_in in zip(models, weights_in):
                 index = LoaderCache().get(model).index
-                if any(
-                    name in index.tensor_paths
-                    for name in [w_in.name] + (w_in.aliases or [])
-                ):
-                    any_weight = True
-                    break
+                physical_names = [w_in.name] + list(w_in.aliases or [])
+                has_physical_weight = any(
+                    name in index.tensor_paths for name in physical_names
+                )
+                any_physical_weight = any_physical_weight or has_physical_weight
 
-            if not any_weight:
-                logging.info(f"Skipping optional weight {weight.name}")
-                return
+                tied_name = next(
+                    (
+                        name
+                        for name in w_in.tied_names or ()
+                        if name in index.tensor_paths
+                    ),
+                    None,
+                )
+                if not has_physical_weight and tied_name is not None:
+                    any_tied_fallback = True
+                    model_cfg = model.config(
+                        trust_remote_code=self.options.trust_remote_code
+                    )
+                    if not getattr(model_cfg, "tie_word_embeddings", True):
+                        raise RuntimeError(
+                            f"Tensor {w_in.name} is absent from model {model}, but "
+                            f"its tied source {tied_name} is present while "
+                            "tie_word_embeddings is false. The checkpoint is "
+                            "inconsistent; provide a physical tensor or correct "
+                            "the model config."
+                        )
+
+        if weight.optional and not any_physical_weight:
+            if any_tied_fallback and not getattr(
+                self.out_model_config, "tie_word_embeddings", True
+            ):
+                raise RuntimeError(
+                    f"Optional tied tensor {weight.name} would be omitted, but the "
+                    "output config has tie_word_embeddings set to false. Choose a "
+                    "tied base/config or provide physical output-head tensors."
+                )
+            logging.info(f"Skipping optional weight {weight.name}")
+            return
 
         tensor_merge_method = self._method
         cfg_g = cfg_reader.for_tensor(weight.name)
