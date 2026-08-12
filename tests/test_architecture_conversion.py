@@ -218,6 +218,125 @@ def test_qwen3_moe_architecture_uses_json_v5_layout():
     assert "model.layers.0.mlp.experts.0.gate_proj.weight" not in names
 
 
+def test_qwen3_5_moe_architecture_matches_qwen36_checkpoint_layout():
+    cfg = transformers.PretrainedConfig()
+    cfg.architectures = ["Qwen3_5MoeForConditionalGeneration"]
+    cfg.model_type = "qwen3_5_moe"
+    cfg.text_config = transformers.PretrainedConfig(
+        num_hidden_layers=40,
+        vocab_size=248320,
+    )
+    cfg.vision_config = transformers.PretrainedConfig(depth=27)
+
+    arch = arch_info_for_config(cfg)
+    assert arch is not None
+    assert set(arch.modules) == {
+        "text_decoder",
+        "mtp",
+        "multi_modal_projector",
+        "vision_tower",
+    }
+    assert arch.vocab_size_config_key == "text_config.vocab_size"
+    assert set(arch.tagalong_files) == {
+        "generation_config.json",
+        "preprocessor_config.json",
+        "video_preprocessor_config.json",
+        "vocab.json",
+    }
+
+    declared = {weight.name: weight for weight in arch.all_weights(cfg)}
+    checkpoint_names = {
+        "lm_head.weight",
+        "model.language_model.embed_tokens.weight",
+        "model.language_model.norm.weight",
+        "model.visual.patch_embed.proj.weight",
+        "model.visual.patch_embed.proj.bias",
+        "model.visual.pos_embed.weight",
+        "model.visual.merger.norm.weight",
+        "model.visual.merger.norm.bias",
+        "model.visual.merger.linear_fc1.weight",
+        "model.visual.merger.linear_fc1.bias",
+        "model.visual.merger.linear_fc2.weight",
+        "model.visual.merger.linear_fc2.bias",
+        "mtp.pre_fc_norm_embedding.weight",
+        "mtp.pre_fc_norm_hidden.weight",
+        "mtp.fc.weight",
+        "mtp.norm.weight",
+    }
+
+    common_text_weights = {
+        "input_layernorm.weight",
+        "mlp.experts.down_proj",
+        "mlp.experts.gate_up_proj",
+        "mlp.gate.weight",
+        "mlp.shared_expert.down_proj.weight",
+        "mlp.shared_expert.gate_proj.weight",
+        "mlp.shared_expert.up_proj.weight",
+        "mlp.shared_expert_gate.weight",
+        "post_attention_layernorm.weight",
+    }
+    linear_attention_weights = {
+        "linear_attn.A_log",
+        "linear_attn.conv1d.weight",
+        "linear_attn.dt_bias",
+        "linear_attn.in_proj_a.weight",
+        "linear_attn.in_proj_b.weight",
+        "linear_attn.in_proj_qkv.weight",
+        "linear_attn.in_proj_z.weight",
+        "linear_attn.norm.weight",
+        "linear_attn.out_proj.weight",
+    }
+    full_attention_weights = {
+        "self_attn.k_norm.weight",
+        "self_attn.k_proj.weight",
+        "self_attn.o_proj.weight",
+        "self_attn.q_norm.weight",
+        "self_attn.q_proj.weight",
+        "self_attn.v_proj.weight",
+    }
+    for layer_idx in range(40):
+        layer_weights = common_text_weights | (
+            full_attention_weights
+            if (layer_idx + 1) % 4 == 0
+            else linear_attention_weights
+        )
+        checkpoint_names.update(
+            f"model.language_model.layers.{layer_idx}.{suffix}"
+            for suffix in layer_weights
+        )
+
+    vision_weights = {
+        "norm1.weight",
+        "norm1.bias",
+        "norm2.weight",
+        "norm2.bias",
+        "attn.qkv.weight",
+        "attn.qkv.bias",
+        "attn.proj.weight",
+        "attn.proj.bias",
+        "mlp.linear_fc1.weight",
+        "mlp.linear_fc1.bias",
+        "mlp.linear_fc2.weight",
+        "mlp.linear_fc2.bias",
+    }
+    for layer_idx in range(27):
+        checkpoint_names.update(
+            f"model.visual.blocks.{layer_idx}.{suffix}"
+            for suffix in vision_weights
+        )
+
+    checkpoint_names.update(
+        f"mtp.layers.0.{suffix}"
+        for suffix in common_text_weights | full_attention_weights
+    )
+
+    assert len(checkpoint_names) == 1045
+    assert checkpoint_names <= set(declared)
+    assert {
+        name for name, weight in declared.items() if not weight.optional
+    } <= checkpoint_names
+
+
 def test_auto_inference_uses_transformers_v5_layout_with_old_checkpoint_keys(
     tmp_path,
 ):
