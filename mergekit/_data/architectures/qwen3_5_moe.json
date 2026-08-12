@@ -6,7 +6,6 @@
     ],
     "vocab_size_config_key": "text_config.vocab_size",
     "tagalong_files": [
-        "generation_config.json",
         "preprocessor_config.json",
         "video_preprocessor_config.json",
         "vocab.json"

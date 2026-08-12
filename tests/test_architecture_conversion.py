@@ -238,7 +238,6 @@ def test_qwen3_5_moe_architecture_matches_qwen36_checkpoint_layout():
     }
     assert arch.vocab_size_config_key == "text_config.vocab_size"
     assert set(arch.tagalong_files) == {
-        "generation_config.json",
         "preprocessor_config.json",
         "video_preprocessor_config.json",
         "vocab.json",
