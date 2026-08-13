@@ -35,6 +35,19 @@ MergeTensorInput: TypeAlias = Union[
 ]
 
 
+class BaseModelTensorTask(Task[torch.Tensor]):
+    """Return the base tensor when no donor provides an optional weight."""
+
+    tensors: MergeTensorInput
+    base_model: ModelReference
+
+    def arguments(self) -> Dict[str, Task]:
+        return {"tensors": self.tensors}
+
+    def execute(self, tensors: Dict[ModelReference, torch.Tensor]) -> torch.Tensor:
+        return tensors[self.base_model]
+
+
 class ConfigParameterDef(BaseModel):
     name: str
     required: bool = False

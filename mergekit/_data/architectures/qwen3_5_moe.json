@@ -137,66 +137,85 @@
                 "override_num_layers": 1,
                 "pre_weights": [
                     {
-                        "name": "mtp.pre_fc_norm_embedding.weight"
+                        "name": "mtp.pre_fc_norm_embedding.weight",
+                        "optional": true
                     },
                     {
-                        "name": "mtp.pre_fc_norm_hidden.weight"
+                        "name": "mtp.pre_fc_norm_hidden.weight",
+                        "optional": true
                     },
                     {
-                        "name": "mtp.fc.weight"
+                        "name": "mtp.fc.weight",
+                        "optional": true
                     }
                 ],
                 "post_weights": [
                     {
-                        "name": "mtp.norm.weight"
+                        "name": "mtp.norm.weight",
+                        "optional": true
                     }
                 ],
                 "layer_templates": {
                     "weights": [
                         {
-                            "name": "mtp.layers.${layer_index}.input_layernorm.weight"
+                            "name": "mtp.layers.${layer_index}.input_layernorm.weight",
+                            "optional": true
                         },
                         {
-                            "name": "mtp.layers.${layer_index}.mlp.experts.down_proj"
+                            "name": "mtp.layers.${layer_index}.mlp.experts.down_proj",
+                            "optional": true
                         },
                         {
-                            "name": "mtp.layers.${layer_index}.mlp.experts.gate_up_proj"
+                            "name": "mtp.layers.${layer_index}.mlp.experts.gate_up_proj",
+                            "optional": true
                         },
                         {
-                            "name": "mtp.layers.${layer_index}.mlp.gate.weight"
+                            "name": "mtp.layers.${layer_index}.mlp.gate.weight",
+                            "optional": true
                         },
                         {
-                            "name": "mtp.layers.${layer_index}.mlp.shared_expert.down_proj.weight"
+                            "name": "mtp.layers.${layer_index}.mlp.shared_expert.down_proj.weight",
+                            "optional": true
                         },
                         {
-                            "name": "mtp.layers.${layer_index}.mlp.shared_expert.gate_proj.weight"
+                            "name": "mtp.layers.${layer_index}.mlp.shared_expert.gate_proj.weight",
+                            "optional": true
                         },
                         {
-                            "name": "mtp.layers.${layer_index}.mlp.shared_expert.up_proj.weight"
+                            "name": "mtp.layers.${layer_index}.mlp.shared_expert.up_proj.weight",
+                            "optional": true
                         },
                         {
-                            "name": "mtp.layers.${layer_index}.mlp.shared_expert_gate.weight"
+                            "name": "mtp.layers.${layer_index}.mlp.shared_expert_gate.weight",
+                            "optional": true
                         },
                         {
-                            "name": "mtp.layers.${layer_index}.post_attention_layernorm.weight"
+                            "name": "mtp.layers.${layer_index}.post_attention_layernorm.weight",
+                            "optional": true
                         },
                         {
-                            "name": "mtp.layers.${layer_index}.self_attn.k_norm.weight"
+                            "name": "mtp.layers.${layer_index}.self_attn.k_norm.weight",
+                            "optional": true
                         },
                         {
-                            "name": "mtp.layers.${layer_index}.self_attn.k_proj.weight"
+                            "name": "mtp.layers.${layer_index}.self_attn.k_proj.weight",
+                            "optional": true
                         },
                         {
-                            "name": "mtp.layers.${layer_index}.self_attn.o_proj.weight"
+                            "name": "mtp.layers.${layer_index}.self_attn.o_proj.weight",
+                            "optional": true
                         },
                         {
-                            "name": "mtp.layers.${layer_index}.self_attn.q_norm.weight"
+                            "name": "mtp.layers.${layer_index}.self_attn.q_norm.weight",
+                            "optional": true
                         },
                         {
-                            "name": "mtp.layers.${layer_index}.self_attn.q_proj.weight"
+                            "name": "mtp.layers.${layer_index}.self_attn.q_proj.weight",
+                            "optional": true
                         },
                         {
-                            "name": "mtp.layers.${layer_index}.self_attn.v_proj.weight"
+                            "name": "mtp.layers.${layer_index}.self_attn.v_proj.weight",
+                            "optional": true
                         }
                     ]
                 }

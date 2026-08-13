@@ -244,6 +244,13 @@ def test_qwen3_5_moe_architecture_matches_qwen36_checkpoint_layout():
     }
 
     declared = {weight.name: weight for weight in arch.all_weights(cfg)}
+    mtp_weights = {
+        name: weight for name, weight in declared.items() if name.startswith("mtp.")
+    }
+    assert len(mtp_weights) == 19
+    assert all(weight.optional for weight in mtp_weights.values())
+    assert not declared["model.language_model.layers.0.mlp.experts.down_proj"].optional
+    assert not declared["model.language_model.layers.0.mlp.gate.weight"].optional
     checkpoint_names = {
         "lm_head.weight",
         "model.language_model.embed_tokens.weight",
@@ -320,8 +327,7 @@ def test_qwen3_5_moe_architecture_matches_qwen36_checkpoint_layout():
     }
     for layer_idx in range(27):
         checkpoint_names.update(
-            f"model.visual.blocks.{layer_idx}.{suffix}"
-            for suffix in vision_weights
+            f"model.visual.blocks.{layer_idx}.{suffix}" for suffix in vision_weights
         )
 
     checkpoint_names.update(

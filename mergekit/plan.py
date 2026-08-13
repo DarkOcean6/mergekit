@@ -30,6 +30,7 @@ from mergekit.io.tasks import (
     TensorWriterTask,
 )
 from mergekit.merge_methods import MergeMethod
+from mergekit.merge_methods.base import BaseModelTensorTask
 from mergekit.options import MergeOptions
 from mergekit.tokenizer import BuildTokenizer, PermutedEmbeddings
 
@@ -162,44 +163,26 @@ class MergePlanner:
         models: List[ModelReference],
         cfg_reader: ConfigReader,
     ):
+        present_models = []
         if weight.optional:
             # check if any input weights are present
-            any_weight = False
             for model, w_in in zip(models, weights_in):
                 index = LoaderCache().get(model).index
                 if any(
                     name in index.tensor_paths
-                    for name in [w_in.name] + (w_in.aliases or [])
+                    for name in [w_in.name]
+                    + list(w_in.aliases or [])
+                    + list(w_in.tied_names or [])
                 ):
-                    any_weight = True
-                    break
+                    present_models.append(model)
 
-            if not any_weight:
+            if not present_models:
                 logging.info(f"Skipping optional weight {weight.name}")
                 return
 
         tensor_merge_method = self._method
         cfg_g = cfg_reader.for_tensor(weight.name)
-        global_params = {}
-        for p in tensor_merge_method.parameters():
-            global_params[p.name] = cfg_g.parameter(
-                p.name, model=None, required=p.required, default=p.default_value
-            )
-
         base_model = cfg_reader.base_model
-
-        tensor_params = {}
-        for model, weight_in in zip(models, weights_in):
-            is_base = model == base_model
-            tensor_params[model] = {}
-            cfg_m = cfg_reader.for_tensor(weight_in.name)
-            for p in tensor_merge_method.tensor_parameters():
-                tensor_params[model][p.name] = cfg_m.parameter(
-                    p.name,
-                    model=model,
-                    required=p.required and not is_base,
-                    default=p.default_value,
-                )
 
         gather_tensors = GatherTensors(
             weight_info=ImmutableMap(data=dict(zip(models, weights_in))),
@@ -221,6 +204,41 @@ class MergePlanner:
                 pad_to_multiple_of=pad_to_multiple,
                 base_model=base_model,
             )
+
+        if (
+            weight.optional
+            and base_model is not None
+            and set(present_models) == {base_model}
+        ):
+            self._tensors.append(
+                (
+                    weight,
+                    BaseModelTensorTask(
+                        tensors=tensor_input_task,
+                        base_model=base_model,
+                    ),
+                )
+            )
+            return
+
+        global_params = {}
+        for p in tensor_merge_method.parameters():
+            global_params[p.name] = cfg_g.parameter(
+                p.name, model=None, required=p.required, default=p.default_value
+            )
+
+        tensor_params = {}
+        for model, weight_in in zip(models, weights_in):
+            is_base = model == base_model
+            tensor_params[model] = {}
+            cfg_m = cfg_reader.for_tensor(weight_in.name)
+            for p in tensor_merge_method.tensor_parameters():
+                tensor_params[model][p.name] = cfg_m.parameter(
+                    p.name,
+                    model=model,
+                    required=p.required and not is_base,
+                    default=p.default_value,
+                )
 
         tensor_task = tensor_merge_method.make_task(
             output_weight=weight,
